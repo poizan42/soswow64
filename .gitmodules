@@ -1,0 +1,3 @@
+[submodule "mhook"]
+	path = mhook
+	url = https://github.com/poizan42/mhook.git
