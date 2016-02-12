@@ -1,0 +1,4 @@
+LIBRARY   SOSWOW64
+EXPORTS
+   DebugExtensionInitialize
+   DebugExtensionUninitialize

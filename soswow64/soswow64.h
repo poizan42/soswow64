@@ -1,0 +1,1 @@
+#define SOSWOW64_API(rt) rt CALLBACK
