@@ -79,11 +79,15 @@ static const char dbgeng_sig3[17] = { 0x8B, 0x47, 0x08, 0x83, 0xC4, 0x0C, 0x81, 
 static const char dbgeng_sig1[17] = { 0x8B, 0x46, 0x08, 0x83, 0xC4, 0x0C, 0x81, 0xB8, 0xA8, 0x00, 0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0x77 };
 // Debugging tools for Windows 7.0
 static const char dbgeng_sig2[20] = { 0x83, 0xC4, 0x0C, 0x8B, 0x55, 0xF8, 0x8B, 0x42, 0x10, 0x81, 0xB8, 0xA0, 0x00, 0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0x77 };
+// Debugging tools for Windows Vista
+static const char dbgeng_sig4[18] = { 0x8B, 0x45, 0xFC, 0x8B, 0x48, 0x08, 0x81, 0xB9, 0xA0, 0x00, 0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0x77, 0x1F };
+
 static BOOL PatchDbgEng(PVOID textStart, size_t textLen)
 {	
 	DWORD sig1start = *(DWORD*)dbgeng_sig1;
 	DWORD sig2start = *(DWORD*)dbgeng_sig2;
 	DWORD sig3start = *(DWORD*)dbgeng_sig3;
+	DWORD sig4start = *(DWORD*)dbgeng_sig4;
 	DWORD* end = (DWORD*)((PBYTE)textStart + textLen - sizeof(dbgeng_sig1));
 	for (DWORD* search = (DWORD*)textStart; search <= end; search = (DWORD*)((PBYTE)search + 1))
 	{
@@ -98,6 +102,10 @@ static BOOL PatchDbgEng(PVOID textStart, size_t textLen)
 		if (*search == sig3start && memcmp(search, dbgeng_sig3, sizeof(dbgeng_sig3)) == 0)
 		{
 			return PatchWith2Nops((PBYTE)search + sizeof(dbgeng_sig3) - 1);
+		}
+		if (*search == sig4start && memcmp(search, dbgeng_sig4, sizeof(dbgeng_sig4)) == 0)
+		{
+			return PatchWith2Nops((PBYTE)search + sizeof(dbgeng_sig4) - 1);
 		}
 	}
 	return FALSE;
