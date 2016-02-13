@@ -1,8 +1,29 @@
+/*
+Copyright (c) 2016 Kasper F. Brandt
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #include "targetver.h"
 
-#define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
+#define WIN32_LEAN_AND_MEAN
 #define PSAPI_VERSION 1
-// Windows Header Files:
 #include <windows.h>
 #include <Psapi.h>
 #include <winternl.h>
@@ -10,17 +31,6 @@
 
 #include "soswow64.h"
 #include "mhook.h"
-//#include "cDbgControl.h"
-
-/*typedef 
-NTSTATUS (NTAPI *_LdrLoadDll)(
-  IN PWCHAR               PathToFile OPTIONAL,
-  IN ULONG                Flags OPTIONAL,
-  IN PUNICODE_STRING      ModuleFileName,
-  OUT PHANDLE             ModuleHandle);
-
-static _LdrLoadDll RealLdrLoadDll;
-static bool ldrLoadDllHooked;*/
 
 typedef HRESULT(WINAPI *_GetExecutingProcessorType)(
 	IDebugControl4 *dbgCtrl,
@@ -73,7 +83,7 @@ static BOOL PatchWith2Nops(PVOID addr)
 	return TRUE;
 }
 
-// Debuging tools for Windows 10
+// Debugging tools for Windows 10
 static const char dbgeng_sig3[17] = { 0x8B, 0x47, 0x08, 0x83, 0xC4, 0x0C, 0x81, 0xB8, 0xC0, 0x00, 0x00, 0x00, 0x04, 0x10, 0x00, 0x00, 0x77 };
 // Debugging tools for Windows 8.0, 8.1
 static const char dbgeng_sig1[17] = { 0x8B, 0x46, 0x08, 0x83, 0xC4, 0x0C, 0x81, 0xB8, 0xA8, 0x00, 0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0x77 };
