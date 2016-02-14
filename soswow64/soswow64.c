@@ -154,8 +154,10 @@ SOSWOW64_API(HRESULT) DebugExtensionInitialize(
 	for (int i = 0; i < peHeader->FileHeader.NumberOfSections; i++)
 	{
 		if (strcmp(sectionHdrs[i].Name, ".text") == 0)
+		{
 			dbgEngPatched = PatchDbgEng(pbDbgeng + sectionHdrs[i].VirtualAddress, sectionHdrs[i].SizeOfRawData);
-		break;
+			break;
+		}
 	}
 	if (dbgEngPatched)
 		dbgctrl->lpVtbl->OutputWide(dbgctrl, DEBUG_OUTPUT_ERROR, L"Successfully patched DbgEng!X86MachineInfo::ConvertCanonContextToTarget.\n");
