@@ -1,5 +1,6 @@
 ** What's this? **
-On a 64-bit Windows installation is it possible to make both 32-bit and 64-bit processes.
+On a 64-bit Windows installation is it possible to make both 32-bit and 64-bit dumps of
+32-bit processes.
 The task manager will create a 64-bit dump, which therefore is often what you end up with
 users sending you. This is not a problem for native executeables since you can still load
 it in windbg and use the !wow64exts.sw extension to switch into the 32-bit view.
