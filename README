@@ -1,0 +1,83 @@
+** What's this? **
+On a 64-bit Windows installation is it possible to make both 32-bit and 64-bit processes.
+The task manager will create a 64-bit dump, which therefore is often what you end up with
+users sending you. This is not a problem for native executeables since you can still load
+it in windbg and use the !wow64exts.sw extension to switch into the 32-bit view.
+
+However if your process is a .NET process and you want to load 
+
+** Usage **
+Copy soswow64.dll into the "winxp" subfolder of windbg. Then after loading a 64-bit memory
+dump of a 32-bit process you can simply load the extension:
+
+0:000> .load soswow64
+Successfully hooked IDebugControl::GetExecutingProcessorType.
+Successfully patched DbgEng!X86MachineInfo::ConvertCanonContextToTarget.
+
+Example:
+
+0:000> .loadby sos clr
+0:000> !wow64exts.sw
+Switched to 32bit mode
+0:000:x86> !threads
+SOS does not support the current target architecture.
+0:000:x86> .load soswow64
+Successfully hooked IDebugControl::GetExecutingProcessorType.
+Successfully patched DbgEng!X86MachineInfo::ConvertCanonContextToTarget.
+0:000:x86> !threads
+ThreadCount:      16
+UnstartedThread:  0
+BackgroundThread: 4
+PendingThread:    0
+DeadThread:       11
+Hosted Runtime:   no
+                                                                         Lock  
+       ID OSID ThreadOBJ    State GC Mode     GC Alloc Context  Domain   Count Apt Exception
+   0    1 318c 00fe9d58   202a020 Preemptive  029CD30C:00000000 00fdd4d0 0     MTA 
+   2    2 5858 00ff78c8     2b220 Preemptive  00000000:00000000 00fdd4d0 0     MTA (Finalizer) 
+XXXX    3    0 00fd63b8   8039820 Preemptive  00000000:00000000 00fdd4d0 0     Ukn (Threadpool Completion Port) 
+   3    5 1ddc 01045c68   8029220 Preemptive  00000000:00000000 00fdd4d0 0     MTA (Threadpool Completion Port) 
+XXXX    6    0 01046c18   8039820 Preemptive  00000000:00000000 00fdd4d0 0     Ukn (Threadpool Completion Port) 
+XXXX    7    0 010857c8   1039820 Preemptive  00000000:00000000 00fdd4d0 0     Ukn (Threadpool Worker) 
+XXXX    8    0 01089a20   1039820 Preemptive  00000000:00000000 00fdd4d0 0     Ukn (Threadpool Worker) 
+XXXX    9    0 0108b300   1039820 Preemptive  00000000:00000000 00fdd4d0 0     Ukn (Threadpool Worker) 
+XXXX   10    0 0108ceb8   1039820 Preemptive  00000000:00000000 00fdd4d0 0     Ukn (Threadpool Worker) 
+XXXX   12    0 0109d418   1039820 Preemptive  00000000:00000000 00fdd4d0 0     Ukn (Threadpool Worker) 
+XXXX   13    0 0109dc38   1039820 Preemptive  00000000:00000000 00fdd4d0 0     Ukn (Threadpool Worker) 
+XXXX   14    0 010b2b10   1039820 Preemptive  00000000:00000000 00fdd4d0 0     Ukn (Threadpool Worker) 
+XXXX   15    0 01084b98   1039820 Preemptive  00000000:00000000 00fdd4d0 0     Ukn (Threadpool Worker) 
+XXXX   16    0 010be6b0   1039820 Preemptive  00000000:00000000 00fdd4d0 0     Ukn (Threadpool Worker) 
+   4   18 5b88 01032318   1020220 Preemptive  00000000:00000000 00fdd4d0 0     Ukn (Threadpool Worker) 
+   5   20 192c 0102ee48   202b220 Preemptive  029CE75C:00000000 00fdd4d0 0     MTA 
+
+
+** Compatibility **
+Any version of sos that has the name "sos.dll" should work since we are hooking the
+IDebugControl interface.
+
+The patching of dbgeng!X86MachineInfo::ConvertCanonContextToTarget has been tested with the
+following versions of dbgeng.dll:
+
+6.6.7.5 (Debugging tools for Vista, WinDbg 6.6.0007.5)
+6.12.2.633 (Debugging tools for Windows 7, WinDbg 6.12.0002.633)
+6.2.9200.20512 (Debugging tools for Windows 8.0, WinDbg 6.2.9200.16384)
+6.3.9600.16384 (Debugging tools for Windows 8.1, WinDbg 6.3.9600.16384)
+10.0.10586.0 (Debugging tools for Windows 10, WinDbg 10.0.10586.567)
+
+The extension will not work on Windows versions older than Windows Vista.
+
+** How? **
+I have described the details on my blog:
+https://poizan.dk/blog/2015/10/15/using-sos-to-debug-32-bit-code-in-a-64-bit-dump-with-windbg/
+
+Note that we are hooking IDebugControl::GetExecutingProcessorType to return the effective
+processor type instead if we are called from sos.dll. That way it should work with every
+sos versions without having to look for specific signatures.
+
+The patching of DbgEng!X86MachineInfo::ConvertCanonContextToTarget is done by looking for
+signatures, so it probably works with other revisions than the five listed above.
+
+** Bugs & improvements? **
+Just file an issue at https://github.com/poizan42/soswow64/issues. If you have a version
+of dbgeng.dll that it does not work with then it would be helpful if you sent me the dll
+as it may be hard to figure out how to get a specific version otherwise.
