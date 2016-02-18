@@ -37,7 +37,9 @@ typedef HRESULT(WINAPI *_GetExecutingProcessorType)(
 	_Out_ PULONG Type);
 
 static _GetExecutingProcessorType RealGetExecutingProcessorType;
-static BOOL getExecutingProcessorTypeHooked;
+static BOOL getExecutingProcessorTypeHooked = FALSE;
+static PVOID patchedAddr = NULL;
+static WORD orgPatchedValue;
 
 void * _ReturnAddress(void);
 #pragma intrinsic(_ReturnAddress)
@@ -70,7 +72,7 @@ static HRESULT WINAPI HookGetExecutingProcessorType(
 static const GUID IID_IDebugControl4 = 
 	{ 0x94e60ce9, 0x9b41, 0x4b19, { 0x9f, 0xc0, 0x6d, 0x9e, 0xb3, 0x52, 0x72, 0xb3 } };
 
-static BOOL PatchWith2Nops(PVOID addr)
+static BOOL PatchWithWord(PVOID addr, WORD value, PWORD oldValue)
 {
 	SYSTEM_INFO sysinfo;
 	GetSystemInfo(&sysinfo);
@@ -78,7 +80,8 @@ static BOOL PatchWith2Nops(PVOID addr)
 	DWORD oldProtect, dummy;
 	if (!VirtualProtect((PVOID)addrPage, sysinfo.dwPageSize, PAGE_EXECUTE_READWRITE, &oldProtect))
 		return FALSE;
-	*(WORD*)addr = 0x9090;
+	*oldValue = *(PWORD)addr;
+	*(PWORD)addr = value;
 	VirtualProtect((PVOID)addrPage, sysinfo.dwPageSize, oldProtect, &dummy);
 	return TRUE;
 }
@@ -90,7 +93,19 @@ static const char dbgeng_sig1[17] = { 0x8B, 0x46, 0x08, 0x83, 0xC4, 0x0C, 0x81, 
 // Debugging tools for Windows 7.0
 static const char dbgeng_sig2[20] = { 0x83, 0xC4, 0x0C, 0x8B, 0x55, 0xF8, 0x8B, 0x42, 0x10, 0x81, 0xB8, 0xA0, 0x00, 0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0x77 };
 // Debugging tools for Windows Vista
-static const char dbgeng_sig4[18] = { 0x8B, 0x45, 0xFC, 0x8B, 0x48, 0x08, 0x81, 0xB9, 0xA0, 0x00, 0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0x77, 0x1F };
+static const char dbgeng_sig4[17] = { 0x8B, 0x45, 0xFC, 0x8B, 0x48, 0x08, 0x81, 0xB9, 0xA0, 0x00, 0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0x77 };
+
+#define CHECK_AND_PATCH(n) \
+	if (*search == sig##n##start && memcmp(search, dbgeng_sig##n, sizeof(dbgeng_sig##n)) == 0) \
+	{ \
+		PVOID addrToPatch = (PBYTE)search + sizeof(dbgeng_sig##n) - 1; \
+		if (PatchWithWord(addrToPatch, 0x9090, &orgPatchedValue)) \
+		{ \
+			patchedAddr = addrToPatch; \
+			return TRUE; \
+		} \
+		return FALSE; \
+	}
 
 static BOOL PatchDbgEng(PVOID textStart, size_t textLen)
 {	
@@ -101,25 +116,15 @@ static BOOL PatchDbgEng(PVOID textStart, size_t textLen)
 	DWORD* end = (DWORD*)((PBYTE)textStart + textLen - sizeof(dbgeng_sig1));
 	for (DWORD* search = (DWORD*)textStart; search <= end; search = (DWORD*)((PBYTE)search + 1))
 	{
-		if (*search == sig1start && memcmp(search, dbgeng_sig1, sizeof(dbgeng_sig1)) == 0)
-		{
-			return PatchWith2Nops((PBYTE)search + sizeof(dbgeng_sig1) - 1);
-		}
-		if (*search == sig2start && memcmp(search, dbgeng_sig2, sizeof(dbgeng_sig2)) == 0)
-		{
-			return PatchWith2Nops((PBYTE)search + sizeof(dbgeng_sig2) - 1);
-		}
-		if (*search == sig3start && memcmp(search, dbgeng_sig3, sizeof(dbgeng_sig3)) == 0)
-		{
-			return PatchWith2Nops((PBYTE)search + sizeof(dbgeng_sig3) - 1);
-		}
-		if (*search == sig4start && memcmp(search, dbgeng_sig4, sizeof(dbgeng_sig4)) == 0)
-		{
-			return PatchWith2Nops((PBYTE)search + sizeof(dbgeng_sig4) - 1);
-		}
+		CHECK_AND_PATCH(1);
+		CHECK_AND_PATCH(2);
+		CHECK_AND_PATCH(3);
+		CHECK_AND_PATCH(4);
 	}
 	return FALSE;
 }
+
+#undef CHECK_AND_PATCH
 
 SOSWOW64_API(HRESULT) DebugExtensionInitialize(
 	_Out_ PULONG Version,
@@ -143,6 +148,7 @@ SOSWOW64_API(HRESULT) DebugExtensionInitialize(
 	}
 	else
 	{
+		getExecutingProcessorTypeHooked = TRUE;
 		dbgctrl->lpVtbl->OutputWide(dbgctrl, DEBUG_OUTPUT_NORMAL, L"Successfully hooked IDebugControl::GetExecutingProcessorType.\n");
 	}
 
@@ -175,6 +181,11 @@ SOSWOW64_API(void) DebugExtensionUninitialize(void)
 	{
 		Mhook_Unhook((PVOID*)&RealGetExecutingProcessorType);
 		getExecutingProcessorTypeHooked = FALSE;
+	}
+	if (patchedAddr)
+	{
+		PatchWithWord(patchedAddr, orgPatchedValue, &orgPatchedValue);
+		patchedAddr = NULL;
 	}
 }
 
