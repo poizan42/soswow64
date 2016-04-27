@@ -69,6 +69,7 @@ following versions of dbgeng.dll:
 6.2.9200.20512 (Debugging tools for Windows 8.0, WinDbg 6.2.9200.16384)
 6.3.9600.16384 (Debugging tools for Windows 8.1, WinDbg 6.3.9600.16384)
 10.0.10586.0 (Debugging tools for Windows 10, WinDbg 10.0.10586.567)
+10.0.14281.933 (Debugging tools for Windows 10 (insider preview), WinDbg 10.0.14281.933)
 
 The extension will not work on Windows versions older than Windows Vista.
 

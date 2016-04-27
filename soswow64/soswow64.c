@@ -44,6 +44,58 @@ static WORD orgPatchedValue;
 void * _ReturnAddress(void);
 #pragma intrinsic(_ReturnAddress)
 
+typedef struct _LANGANDCODEPAGE {
+  WORD wLanguage;
+  WORD wCodePage;
+} LANGANDCODEPAGE, *PLANGANDCODEPAGE;
+
+static BOOL CheckIsSoSByOrgFilename(void* caller)
+{
+	HMODULE module;
+	if (!GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCWSTR)caller, &module))
+		return FALSE;
+	HRSRC resInfo = FindResource(module, MAKEINTRESOURCE(VS_VERSION_INFO), RT_VERSION);
+	if (!resInfo)
+		return FALSE;
+	DWORD resSize = SizeofResource(module, resInfo);
+	if (!resSize)
+		return FALSE;
+	HGLOBAL resData = LoadResource(module, resInfo);
+	if (!resData)
+		return FALSE;
+	void* resPtr = LockResource(resData);
+	if (!resPtr)
+		return FALSE;
+	void* resCopy = malloc(resSize);
+	memcpy(resCopy, resPtr, resSize);
+	PLANGANDCODEPAGE translation;
+	DWORD cbTranslate;
+	BOOL ret = FALSE;
+	if (!VerQueryValue(resCopy, L"\\VarFileInfo\\Translation", &translation, &cbTranslate))
+	{
+		goto cleanup;
+	}
+	wchar_t subBlock[42];
+	for (DWORD i = 0; i < cbTranslate / sizeof(LANGANDCODEPAGE); i++)
+	{
+		wsprintf(subBlock, L"\\StringFileInfo\\%04x%04x\\OriginalFileName",
+			translation[i].wLanguage,
+			translation[i].wCodePage);
+		LPWSTR orgFileName;
+		DWORD cbOrgFileName;
+		if (!VerQueryValue(resCopy, subBlock, &orgFileName, &cbOrgFileName) || !cbOrgFileName)
+			continue;
+		if (_wcsicmp(orgFileName, L"sos.dll") == 0)
+		{
+			ret = TRUE;
+			break;
+		}
+	}
+cleanup:
+	free(resCopy);
+	return ret;
+}
+
 static HRESULT WINAPI HookGetExecutingProcessorType(
 	IDebugControl4* dbgCtrl,
 	_Out_ PULONG Type)
@@ -60,13 +112,16 @@ static HRESULT WINAPI HookGetExecutingProcessorType(
 		return RealGetExecutingProcessorType(dbgCtrl, Type);
 
 	LPWSTR filenamePart = wcsrchr(imageName, L'\\');
-	if (!filenamePart || (_wcsicmp(filenamePart+1, L"sos.dll") != 0))
-	{
-		free(imageName);
-		return RealGetExecutingProcessorType(dbgCtrl, Type);
-	}
+	BOOL isSoS = filenamePart && _wcsicmp(filenamePart + 1, L"sos.dll") == 0;
 	free(imageName);
-	return dbgCtrl->lpVtbl->GetEffectiveProcessorType(dbgCtrl, Type);
+	if (!isSoS)
+	{
+		isSoS = CheckIsSoSByOrgFilename(caller);
+	}
+	if (isSoS)
+		return dbgCtrl->lpVtbl->GetEffectiveProcessorType(dbgCtrl, Type);
+	else
+		return RealGetExecutingProcessorType(dbgCtrl, Type);
 }
 // DbgEng.lib fails to export this
 static const GUID IID_IDebugControl4 = 
