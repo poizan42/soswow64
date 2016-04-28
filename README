@@ -58,8 +58,8 @@ XXXX   16    0 010be6b0   1039820 Preemptive  00000000:00000000 00fdd4d0 0     U
 
 
 ** Compatibility **
-Any version of sos that has the name "sos.dll" should work since we are hooking the
-IDebugControl interface.
+Any version of sos that either has the name "sos.dll" or the OriginalFilename "sos.dll" in its
+version info resource should work since we are hooking the IDebugControl interface.
 
 The patching of dbgeng!X86MachineInfo::ConvertCanonContextToTarget has been tested with the
 following versions of dbgeng.dll:
