@@ -109,7 +109,10 @@ static HRESULT WINAPI HookGetExecutingProcessorType(
 
 	LPWSTR imageName = (LPWSTR)malloc(32768);
 	if (!GetMappedFileName(GetCurrentProcess(), caller, imageName, 32768))
+	{
+		free(imageName);
 		return RealGetExecutingProcessorType(dbgCtrl, Type);
+	}
 
 	LPWSTR filenamePart = wcsrchr(imageName, L'\\');
 	BOOL isSoS = filenamePart && _wcsicmp(filenamePart + 1, L"sos.dll") == 0;
